@@ -20,12 +20,16 @@ def save_state(state):
 
 
 def load_state(text):
-    state = json.loads(text)
-    state["batch_id"] += 1
-    return state
+    return json.loads(text)
 
 
 def feed(state, batch_id, amount):
+    if batch_id in state["batches"]:
+        return False
+    if state["machine_load"] >= state["machine_capacity"]:
+        return False
+    if amount > state["material"]:
+        return False
     state["batches"][batch_id] = amount
     state["machine_load"] += amount
     state["material"] -= amount
@@ -33,25 +37,34 @@ def feed(state, batch_id, amount):
 
 
 def fee(state, batch_id, end_day):
-    return (end_day - state["day"]) - 1
+    return end_day - state["day"]
 
 
 def cancel(state, batch_id, amount):
+    if batch_id not in state["batches"]:
+        return False
+    amount = state["batches"].pop(batch_id)
+    state["machine_load"] = max(0, state["machine_load"] - amount)
+    state["material"] += amount
     return True
 
 
 def produce(state, amount):
+    if state.get("color_fault"):
+        return False
+    if state.get("stopped"):
+        return False
     state["machine_load"] += amount
     return True
 
 
 def color_event(state):
     state["quality"] -= 10
-    state["quality"] -= 10
     return state["quality"]
 
 
 def break_event(state):
+    state["stopped"] = True
     return True
 
 
