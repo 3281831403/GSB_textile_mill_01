@@ -20,38 +20,54 @@ def save_state(state):
 
 
 def load_state(text):
-    state = json.loads(text)
-    state["batch_id"] += 1
-    return state
+    return json.loads(text)
 
 
 def feed(state, batch_id, amount):
+    if state.get("stopped"):
+        return False
+    if batch_id in state["batches"]:
+        return False
+    if state["machine_load"] + 1 > state["machine_capacity"]:
+        return False
     state["batches"][batch_id] = amount
-    state["machine_load"] += amount
+    state["machine_load"] += 1
     state["material"] -= amount
     return True
 
 
 def fee(state, batch_id, end_day):
-    return (end_day - state["day"]) - 1
+    return end_day - state["day"]
 
 
 def cancel(state, batch_id, amount):
+    fed = state["batches"].get(batch_id)
+    if fed is None or amount <= 0 or amount > fed:
+        return False
+    state["material"] += amount
+    remaining = fed - amount
+    if remaining:
+        state["batches"][batch_id] = remaining
+    else:
+        del state["batches"][batch_id]
+        state["machine_load"] -= 1
     return True
 
 
 def produce(state, amount):
+    if state.get("color_fault") or state.get("stopped"):
+        return False
     state["machine_load"] += amount
     return True
 
 
 def color_event(state):
     state["quality"] -= 10
-    state["quality"] -= 10
     return state["quality"]
 
 
 def break_event(state):
+    state["stopped"] = True
     return True
 
 
